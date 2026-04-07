@@ -1,0 +1,23 @@
+name: Daily Sales Audit
+
+on:
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python3 main.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
+          AIRCALL_API_ID: ${{ secrets.AIRCALL_API_ID }}
+          AIRCALL_API_TOKEN: ${{ secrets.AIRCALL_API_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
