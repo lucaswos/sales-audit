@@ -2,7 +2,6 @@ import requests
 import os
 import re
 import time
-import pathlib
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
@@ -12,6 +11,7 @@ BASE = "https://api.hubapi.com"
 PIPELINE_ID = "290257090"
 DEAL_STAGES = ["1409701055", "469976530", "470935799", "469976532"]
 DISCOVERY_STAGE = "1409701055"
+OWNER_IDS = ["75906518", "488757993"]
 
 def get_headers():
     return {
@@ -21,28 +21,22 @@ def get_headers():
 
 def get_open_deals():
     url = f"{BASE}/crm/v3/objects/deals/search"
-    body = {
-        "filterGroups": [
-            {
+    all_results = []
+    for owner_id in OWNER_IDS:
+        body = {
+            "filterGroups": [{
                 "filters": [
-                    {"propertyName": "hubspot_owner_id", "operator": "EQ", "value": "75906518"},
+                    {"propertyName": "hubspot_owner_id", "operator": "EQ", "value": owner_id},
                     {"propertyName": "pipeline", "operator": "EQ", "value": PIPELINE_ID},
                     {"propertyName": "dealstage", "operator": "IN", "values": DEAL_STAGES}
                 ]
-            },
-            {
-                "filters": [
-                    {"propertyName": "hubspot_owner_id", "operator": "EQ", "value": "488757993"},
-                    {"propertyName": "pipeline", "operator": "EQ", "value": PIPELINE_ID},
-                    {"propertyName": "dealstage", "operator": "IN", "values": DEAL_STAGES}
-                ]
-            }
-        ],
-        "properties": ["dealname", "amount", "closedate", "dealstage", "hubspot_owner_id"],
-        "limit": 250
-    }
-    r = requests.post(url, headers=get_headers(), json=body)
-    return r.json().get("results", [])
+            }],
+            "properties": ["dealname", "amount", "closedate", "dealstage", "hubspot_owner_id"],
+            "limit": 250
+        }
+        r = requests.post(url, headers=get_headers(), json=body)
+        all_results.extend(r.json().get("results", []))
+    return all_results
 
 def get_deal_stage_history(deal_id):
     url = f"{BASE}/crm/v3/objects/deals/{deal_id}?propertiesWithHistory=dealstage"
