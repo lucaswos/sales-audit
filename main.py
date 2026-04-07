@@ -4,12 +4,17 @@ from dotenv import load_dotenv
 
 load_dotenv(pathlib.Path(__file__).parent / ".env")
 
-from hubspot import get_new_discovery_deals, get_aircall_id_from_deal, get_sdr_from_deal_call, get_company_for_deal
+from hubspot import get_new_discovery_deals, get_open_deals, get_aircall_id_from_deal, get_sdr_from_deal_call, get_company_for_deal
 from aircall import get_transcription
 from analyze_call import analyze_cold_call
 
 def run():
     print("Pruefe neue Discovery Deals...")
+    print(f"HUBSPOT_API_KEY vorhanden: {bool(os.environ.get('HUBSPOT_API_KEY'))}")
+    
+    all_deals = get_open_deals()
+    print(f"Alle offenen Deals: {len(all_deals)}")
+    
     deals = get_new_discovery_deals()
     print(f"{len(deals)} neue Deals gefunden.")
 
