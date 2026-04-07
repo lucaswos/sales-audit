@@ -2,40 +2,51 @@ import requests
 import os
 import re
 import time
+import pathlib
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE = "https://api.hubapi.com"
-HEADERS = {
-    "Authorization": f"Bearer {os.environ['HUBSPOT_API_KEY']}",
-    "Content-Type": "application/json"
-}
-OWNER_IDS = ["75906518", "488757993"]
 PIPELINE_ID = "290257090"
 DEAL_STAGES = ["1409701055", "469976530", "470935799", "469976532"]
 DISCOVERY_STAGE = "1409701055"
 
+def get_headers():
+    return {
+        "Authorization": f"Bearer {os.environ['HUBSPOT_API_KEY']}",
+        "Content-Type": "application/json"
+    }
+
 def get_open_deals():
     url = f"{BASE}/crm/v3/objects/deals/search"
     body = {
-        "filterGroups": [{
-            "filters": [
-                {"propertyName": "hubspot_owner_id", "operator": "IN", "values": OWNER_IDS},
-                {"propertyName": "pipeline", "operator": "EQ", "value": PIPELINE_ID},
-                {"propertyName": "dealstage", "operator": "IN", "values": DEAL_STAGES}
-            ]
-        }],
+        "filterGroups": [
+            {
+                "filters": [
+                    {"propertyName": "hubspot_owner_id", "operator": "EQ", "value": "75906518"},
+                    {"propertyName": "pipeline", "operator": "EQ", "value": PIPELINE_ID},
+                    {"propertyName": "dealstage", "operator": "IN", "values": DEAL_STAGES}
+                ]
+            },
+            {
+                "filters": [
+                    {"propertyName": "hubspot_owner_id", "operator": "EQ", "value": "488757993"},
+                    {"propertyName": "pipeline", "operator": "EQ", "value": PIPELINE_ID},
+                    {"propertyName": "dealstage", "operator": "IN", "values": DEAL_STAGES}
+                ]
+            }
+        ],
         "properties": ["dealname", "amount", "closedate", "dealstage", "hubspot_owner_id"],
         "limit": 250
     }
-    r = requests.post(url, headers=HEADERS, json=body)
+    r = requests.post(url, headers=get_headers(), json=body)
     return r.json().get("results", [])
 
 def get_deal_stage_history(deal_id):
     url = f"{BASE}/crm/v3/objects/deals/{deal_id}?propertiesWithHistory=dealstage"
-    r = requests.get(url, headers=HEADERS)
+    r = requests.get(url, headers=get_headers())
     history = r.json().get("propertiesWithHistory", {}).get("dealstage", [])
     return sorted(history, key=lambda x: x.get("timestamp", ""), reverse=True)
 
@@ -60,14 +71,14 @@ def get_new_discovery_deals():
 
 def get_aircall_id_from_deal(deal_id):
     url = f"{BASE}/crm/v3/objects/deals/{deal_id}/associations/calls"
-    r = requests.get(url, headers=HEADERS)
+    r = requests.get(url, headers=get_headers())
     call_ids = [c.get("id") for c in r.json().get("results", [])]
     latest_call = None
     latest_date = None
     for cid in call_ids:
         call_url = f"{BASE}/crm/v3/objects/calls/{cid}"
         params = {"properties": "hs_call_external_id,hs_createdate,hs_call_direction"}
-        r2 = requests.get(call_url, headers=HEADERS, params=params)
+        r2 = requests.get(call_url, headers=get_headers(), params=params)
         props = r2.json().get("properties", {})
         direction = props.get("hs_call_direction", "")
         external_id = props.get("hs_call_external_id", "")
@@ -80,14 +91,14 @@ def get_aircall_id_from_deal(deal_id):
 
 def get_sdr_from_deal_call(deal_id):
     url = f"{BASE}/crm/v3/objects/deals/{deal_id}/associations/calls"
-    r = requests.get(url, headers=HEADERS)
+    r = requests.get(url, headers=get_headers())
     call_ids = [c.get("id") for c in r.json().get("results", [])]
     latest_call = None
     latest_date = None
     for cid in call_ids:
         call_url = f"{BASE}/crm/v3/objects/calls/{cid}"
         params = {"properties": "hs_call_external_id,hs_createdate,hs_call_direction,hs_call_body"}
-        r2 = requests.get(call_url, headers=HEADERS, params=params)
+        r2 = requests.get(call_url, headers=get_headers(), params=params)
         props = r2.json().get("properties", {})
         direction = props.get("hs_call_direction", "")
         external_id = props.get("hs_call_external_id", "")
@@ -105,14 +116,14 @@ def get_sdr_from_deal_call(deal_id):
 
 def get_company_for_deal(deal_id):
     url = f"{BASE}/crm/v3/objects/deals/{deal_id}/associations/companies"
-    r = requests.get(url, headers=HEADERS)
+    r = requests.get(url, headers=get_headers())
     results = r.json().get("results", [])
     if not results:
         return None
     company_id = results[0].get("id")
     company_url = f"{BASE}/crm/v3/objects/companies/{company_id}"
     params = {"properties": "name,industry,city,country,numberofemployees,annualrevenue"}
-    r2 = requests.get(company_url, headers=HEADERS, params=params)
+    r2 = requests.get(company_url, headers=get_headers(), params=params)
     return r2.json().get("properties", {})
 
 def create_note(deal_id, body):
@@ -127,5 +138,5 @@ def create_note(deal_id, body):
             "types": [{"associationCategory": "HUBSPOT_DEFINED", "associationTypeId": 214}]
         }]
     }
-    r = requests.post(url, headers=HEADERS, json=data)
+    r = requests.post(url, headers=get_headers(), json=data)
     return r.status_code == 201
